@@ -1,0 +1,22 @@
+{
+  "name": "kinesisFire",
+  "version": "0.0.1",
+  "description": "A Fire and forget implementation of PutRecords of Amazon's Kinesis",
+  "main": "index.js",
+  "repository": "mhart/kinesis",
+  "keywords": [
+    "kinesis",
+    "stream",
+    "streaming",
+    "aws",
+    "logs",
+    "logging"
+  ],
+  "author": "Shijun Bian <shiroh880527@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^0.9.0",
+    "aws4": "^0.3.0",
+    "awscred": "^1.0.3",
+  }
+}
