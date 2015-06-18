@@ -19,16 +19,13 @@ var KinesisHelper = {
       return kinesis.stream(streamName);
     } catch (err) {
       console.log(err.stack)
-      //logger.error('[kinesis] error occurs in getStream');
     }
   },
 
   writeData : function (stream, dataStr) {
-    //var pKey = uuid.v4(); // e.g. 32a4fbed-676d-47f9-a321-cb2f267e2918
     stream.write({
       PartitionKey : uuid.v4(),
       Data         : new Buffer(dataStr)
-      //Data          : dataStr,
     }, 'utf8');
   }
 };
