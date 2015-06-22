@@ -1,48 +1,71 @@
+//TODO stop and retry mechanism when request failure happens.
 var util       = require('util'),
     stream     = require('stream'),
     https      = require('https'),
     crypto     = require('crypto'),
     aws4       = require('aws4'),
-    awscred    = require('awscred'),
     configFile = require('./config.js'),
     https      = require('https');
 
-exports.stream        = function (streamName) {
+exports.stream = function (streamName) {
   return new KinesisStream(streamName)
 }
+
+util.inherits(KinesisStream, stream.Duplex);
+
 exports.KinesisStream = KinesisStream
 function KinesisStream(streamName) {
-  this.config      = configFile[streamName];
+  this.config                  = configFile[streamName];
   stream.Duplex.call(this, { objectMode : true })
-  this.streamName  = streamName;
-  this.name        = streamName;
-  this.records     = [];
-  this.sentFlag    = false;
-  this.region      = this.config.region;
-  this.credentials = this.config.credentials;
-  this.timeout     = this.config.timeout;
-  this.agent       = new https.Agent;
-  this.agent.keepAlive = true;
-  this.agent.maxSockets = this.config.maxSockets;
+  this.streamName              = streamName;
+  this.name                    = streamName;
+  this.records                 = [];
+  this.sentFlag                = false;
+  this.region                  = this.config.region;
+  this.credentials             = this.config.credentials;
+  this.timeout                 = this.config.timeout;
+  this.agent                   = new https.Agent;
+  this.agent.keepAlive         = true;
+  this.agent.maxSockets        = this.config.maxSockets;
   this.agent.options.keepAlive = true;
-  this.version     = this.config.version;
-
-
+  this.version                 = this.config.version;
+  this.failureCount            = 0;
+  this.blockSending            = false;
+  this.blockSendingInterval    = this.config.blockInterval;
   this._sendToKinesisRecursively();
+
+  var self = this;
+  this.on('error', function (err) {
+    if (self.config.failureHandlerFlag) {
+      self.failureCount++;
+      if (self.failureCount >= self.config.failureThreshold && self.blockSending === false) {
+        self.blockSendingInterval = (self.blockSendingInterval * 2) >= 600000 ? 600000 : self.blockSendingInterval * 2;
+        self.blockSending         = true;
+        setTimeout(function () {
+          self.blockSending = false;
+        }, self.blockSendingInterval)
+      }
+      self.emit('failure', err);
+    }
+  });
+
+  this.on('success', function () {
+    if (self.config.failureHandlerFlag) {
+      self.failureCount = 0;
+      self.blockSendingInterval = self.config.blockInterval;
+    }
+  });
 }
-
-
-util.inherits(KinesisStream, stream.Duplex)
 
 KinesisStream.prototype.getSelfRecords = function () {
   return this.records;
 }
 
 
-KinesisStream.prototype._write = function (data, endCoding, cb) {
+KinesisStream.prototype.write = function (data, endCoding) {
   var self = this;
   try {
-    self.makeRecord(data, endCoding, cb);
+    self.makeRecord(data, endCoding);
   } catch (err) {
     self.emit('error', err);
   }
@@ -51,6 +74,9 @@ KinesisStream.prototype._write = function (data, endCoding, cb) {
 KinesisStream.prototype._sendToKinesisRecursively = function () {
   var self = this;
   setTimeout(function () {
+    if (self.config.failureHandlerFlag && self.blockSending) {
+      return;
+    }
     if (self.sentFlag === true) {
       self.sentFlag = false;
       self._sendToKinesisRecursively();
@@ -79,7 +105,10 @@ KinesisStream.prototype._sendToKinesis = function (done) {
   done();
 }
 
-KinesisStream.prototype.makeRecord = function (data, encoding, cb) {
+KinesisStream.prototype.makeRecord = function (data, encoding) {
+  if (this.config.failureHandlerFlag && this.blockSending) {
+    return;
+  }
   var self = this;
   if (Buffer.isBuffer(data)) data = { Data : data }
 
@@ -92,9 +121,9 @@ KinesisStream.prototype.makeRecord = function (data, encoding, cb) {
     self._sendToKinesis(function () {
       self.sentFlag = true
     });
-    return cb();
+    //return cb();
   }
-  return cb();
+  //return cb();
 }
 
 KinesisStream.prototype.makeBatchRequest = function (data) {
@@ -147,8 +176,8 @@ KinesisStream.prototype.request = function (action, data, options, cb) {
 KinesisStream.prototype.makeRequest = function (httpOptions, body, cb) {
   httpOptions.headers.Date = new Date().toUTCString()
   aws4.sign(httpOptions, this.credentials)
-
-  var req = https.request(httpOptions, function (res) {
+  var self                 = this;
+  var req                  = https.request(httpOptions, function (res) {
     var json = ''
 
     res.setEncoding('utf8')
@@ -167,25 +196,27 @@ KinesisStream.prototype.makeRequest = function (httpOptions, body, cb) {
           parseError = e
         }
 
-      if (res.statusCode == 200 && !parseError)
+      if (res.statusCode == 200 && !parseError) {
+        self.emit('success');
         return cb(null, response)
-
-      var error        = new Error
-      error.statusCode = res.statusCode
-      if (response != null) {
-        error.name    = (response.__type || '').split('#').pop()
-        error.message = response.message || response.Message || JSON.stringify(response)
       } else {
-        if (res.statusCode == 413) json = 'Request Entity Too Large'
-        error.message = 'HTTP/1.1 ' + res.statusCode + ' ' + json
+        var error        = new Error
+        error.statusCode = res.statusCode
+        if (response != null) {
+          error.name    = (response.__type || '').split('#').pop()
+          error.message = response.message || response.Message || JSON.stringify(response)
+        } else {
+          if (res.statusCode == 413) json = 'Request Entity Too Large'
+          error.message = 'HTTP/1.1 ' + res.statusCode + ' ' + json
+        }
+        self.emit('error', error);
+        cb(error)
       }
-      cb(error)
+
     })
   }).on('error', cb)
 
-  //var util = require('util');
-  //console.log(util.inspect(req));
-  req.setTimeout(this.timeout)
+  req.setTimeout(this.timeout);
 
   req.end(body)
   delete httpOptions.body;
