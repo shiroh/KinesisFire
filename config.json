@@ -1,0 +1,27 @@
+{
+  "credentials":{
+
+    "accessKeyId": "AKIAIP3OK6FJNNSKSJGQ",
+    "secretAccessKey": "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"
+  },
+
+  "region" : "ap-southeast-1",
+
+  "stream" : "stg-eta",
+
+  "recordsToWritePerBatch" : 500,
+
+  "waitBetweenPutRecordsCallsInMilliseconds" : 5000,
+
+  "version" : "20131202",
+
+  "maxSockets" : 500,
+
+  "timeout" : 100,
+
+  "failureThreshold" : 10,
+
+  "failureHandlerFlag" : true,
+
+  "blockInterval" : 1000
+}

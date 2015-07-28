@@ -4,18 +4,17 @@ var util       = require('util'),
     https      = require('https'),
     crypto     = require('crypto'),
     aws4       = require('aws4'),
-    configFile = require('./config.js'),
     https      = require('https');
 
-exports.stream = function (streamName) {
-  return new KinesisStream(streamName)
+exports.stream = function (kinesisConf, streamName) {
+  return new KinesisStream(kinesisConf, streamName)
 }
 
 util.inherits(KinesisStream, stream.Duplex);
 
 exports.KinesisStream = KinesisStream
-function KinesisStream(streamName) {
-  this.config                  = configFile[streamName];
+function KinesisStream(kinesisConf, streamName) {
+  this.config                  = kinesisConf
   stream.Duplex.call(this, { objectMode : true })
   this.streamName              = streamName;
   this.name                    = streamName;
@@ -103,7 +102,7 @@ KinesisStream.prototype._sendToKinesis = function (done) {
   delete self.records;
   self.records      = [];
   done();
-}
+};
 
 KinesisStream.prototype.makeRecord = function (data, encoding) {
   if (this.config.failureHandlerFlag && this.blockSending) {
