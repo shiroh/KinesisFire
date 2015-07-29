@@ -1,13 +1,11 @@
 {
   "credentials":{
 
-    "accessKeyId": "AKIAIP3OK6FJNNSKSJGQ",
-    "secretAccessKey": "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"
+    "accessKeyId": "",
+    "secretAccessKey": ""
   },
 
   "region" : "ap-southeast-1",
-
-  "stream" : "stg-eta",
 
   "recordsToWritePerBatch" : 500,
 
