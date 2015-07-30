@@ -33,7 +33,7 @@ var KinesisHelper = {
 
 
 var stream = KinesisHelper.getStream('YourStreamname');
-stream.on('error', function(err) {
+stream.on('failure', function(err) {
   console.log('catch error: ' + err.stack);
 })
 
