@@ -1,0 +1,25 @@
+{
+  "credentials":{
+
+    "accessKeyId": "",
+    "secretAccessKey": ""
+  },
+
+  "region" : "ap-southeast-1",
+
+  "recordsToWritePerBatch" : 500,
+
+  "waitBetweenPutRecordsCallsInMilliseconds" : 5000,
+
+  "version" : "20131202",
+
+  "maxSockets" : 500,
+
+  "timeout" : 100,
+
+  "failureThreshold" : 10,
+
+  "failureHandlerFlag" : true,
+
+  "blockInterval" : 1000
+}
