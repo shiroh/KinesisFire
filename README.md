@@ -13,10 +13,10 @@ Example
 ```js
 var KinesisHelper = {
 
-  getStream : function (streamName) {
+  getStream : function (kinesisConf, streamName) {
     try {
 
-      return kinesis.stream(streamName);
+      return kinesis.stream(kinesisConf, streamName);
     } catch (err) {
       console.log(err.stack)
     }
